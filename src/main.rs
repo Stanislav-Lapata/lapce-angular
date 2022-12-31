@@ -7,7 +7,10 @@
 use anyhow::Result;
 use lapce_plugin::{
     psp_types::{
-        lsp_types::{request::Initialize, DocumentFilter, DocumentSelector, InitializeParams, Url, MessageType},
+        lsp_types::{
+            request::Initialize, DocumentFilter, DocumentSelector, InitializeParams, MessageType,
+            Url,
+        },
         Request,
     },
     register_plugin, LapcePlugin, VoltEnvironment, PLUGIN_RPC,
@@ -20,49 +23,52 @@ struct State {}
 register_plugin!(State);
 
 fn initialize(params: InitializeParams) -> Result<()> {
-    let document_selector: DocumentSelector = vec![DocumentFilter {
-        // lsp language id
-        language: Some(String::from("language_id")),
-        // glob pattern
-        pattern: Some(String::from("**/*.{ext1,ext2}")),
-        // like file:
-        scheme: None,
-    }];
-    let mut server_args = vec![];
+    let document_selector: DocumentSelector = vec![
+        DocumentFilter {
+            language: Some(String::from("typescript")),
+            pattern: Some(String::from("**/*.ts")),
+            scheme: None,
+        },
+        DocumentFilter {
+            language: Some(String::from("html")),
+            pattern: Some(String::from("**/*.html")),
+            scheme: None,
+        },
+    ];
 
-    // Check for user specified LSP server path
-    // ```
-    // [lapce-plugin-name.lsp]
-    // serverPath = "[path or filename]"
-    // serverArgs = ["--arg1", "--arg2"]
-    // ```
+    let mut server_args = vec![
+        String::from("--stdio"),
+        String::from("--tsProbeLocations"),
+        String::from(""),
+        String::from("--ngProbeLocations"),
+        String::from(""),
+    ];
+
     if let Some(options) = params.initialization_options.as_ref() {
-        if let Some(lsp) = options.get("lsp") {
-            if let Some(args) = lsp.get("serverArgs") {
-                if let Some(args) = args.as_array() {
-                    if !args.is_empty() {
-                        server_args = vec![];
-                    }
-                    for arg in args {
-                        if let Some(arg) = arg.as_str() {
-                            server_args.push(arg.to_string());
-                        }
+        if let Some(args) = options.get("serverArgs") {
+            if let Some(args) = args.as_array() {
+                if !args.is_empty() {
+                    server_args = vec![];
+                }
+                for arg in args {
+                    if let Some(arg) = arg.as_str() {
+                        server_args.push(arg.to_string());
                     }
                 }
             }
+        }
 
-            if let Some(server_path) = lsp.get("serverPath") {
-                if let Some(server_path) = server_path.as_str() {
-                    if !server_path.is_empty() {
-                        let server_uri = Url::parse(&format!("urn:{}", server_path))?;
-                        PLUGIN_RPC.start_lsp(
-                            server_uri,
-                            server_args,
-                            document_selector,
-                            params.initialization_options,
-                        );
-                        return Ok(());
-                    }
+        if let Some(server_path) = options.get("serverPath") {
+            if let Some(server_path) = server_path.as_str() {
+                if !server_path.is_empty() {
+                    let server_uri = Url::parse(&format!("urn:{}", server_path))?;
+                    PLUGIN_RPC.start_lsp(
+                        server_uri,
+                        server_args,
+                        document_selector,
+                        params.initialization_options,
+                    );
+                    return Ok(());
                 }
             }
         }
@@ -88,16 +94,10 @@ fn initialize(params: InitializeParams) -> Result<()> {
 
     // see lapce_plugin::Http for available API to download files
 
-    let _ = match VoltEnvironment::operating_system().as_deref() {
-        Ok("windows") => {
-            format!("{}.exe", "[filename]")
-        }
-        _ => "[filename]".to_string(),
+    let server_uri = match VoltEnvironment::operating_system().as_deref() {
+        Ok("windows") => return Ok(()),
+        _ => Url::parse("urn:ngserver")?,
     };
-
-    // Plugin working directory
-    let volt_uri = VoltEnvironment::uri()?;
-    let server_uri = Url::parse(&volt_uri)?.join("[filename]")?;
 
     // if you want to use server from PATH
     // let server_uri = Url::parse(&format!("urn:{filename}"))?;
@@ -120,8 +120,12 @@ impl LapcePlugin for State {
         match method.as_str() {
             Initialize::METHOD => {
                 let params: InitializeParams = serde_json::from_value(params).unwrap();
+
                 if let Err(e) = initialize(params) {
-                    PLUGIN_RPC.window_show_message(MessageType::ERROR, format!("plugin returned with error: {e}"))
+                    PLUGIN_RPC.window_show_message(
+                        MessageType::ERROR,
+                        format!("plugin returned with error: {e}"),
+                    )
                 }
             }
             _ => {}

@@ -1,30 +1,20 @@
-name = "<plugin-name>"
-version = "0.0.0"
-author = "<your name>"
-display-name = "<plugin-display-name>"
-description = "<plugin-description>"
-wasm = "bin/<plugin-name>.wasm"
+name = "lapce-angular"
+version = "0.1.0"
+author = "Stanislav Lapata"
+display-name = "Angular"
+description = "Angular plugin for the Lapce Editor - Powered by angular"
+wasm = "bin/lapce-angular.wasm"
+repository = "https://github.com/Stanislav-Lapata/lapce-angular"
+icon = "assets/angular.svg"
 
 [activation]
-language = []
-workspace-contains = []
+language = ["typescript", "html"]
+workspace-contains = ["*/angular.json"]
 
-[config."volt.serverPath"]
-default = ""
-description = "Path to custom LSP executable"
+[config.serverPath]
+default = "ngserver"
+description = "Path to the ngserver command."
 
-# [config."volt.serverArgs"]
-# default = []
-# description = ""
-
-# [config."lspSettingArray"]
-# default = []
-# description = ""
-
-# [config."lspSettingString"]
-# default = ""
-# description = ""
-
-# [config."lspSettingBool"]
-# default = false
-# description = ""
+[config.serverArgs]
+default = ["--stdio", "--tsProbeLocations", "", "--ngProbeLocations", ""]
+description = "LSP server arguments to pass when launching."
